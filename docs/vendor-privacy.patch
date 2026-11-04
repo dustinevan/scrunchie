@@ -1,0 +1,114 @@
+--- a/vendor/charm.land/bubbletea/v2/tea.go
++++ b/vendor/charm.land/bubbletea/v2/tea.go
+@@ -16,12 +16,10 @@
+ 	"fmt"
+ 	"image/color"
+ 	"io"
+-	"log"
+ 	"os"
+ 	"os/signal"
+ 	"runtime"
+ 	"runtime/debug"
+-	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -651,13 +649,7 @@
+ 		p.fps = maxFPS
+ 	}
+ 
+-	tracePath, traceOk := os.LookupEnv("TEA_TRACE")
+-	if traceOk && len(tracePath) > 0 {
+-		// We have a trace filepath.
+-		if f, err := os.OpenFile(tracePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o600); err == nil {
+-			p.logger = log.New(f, "bubbletea: ", log.LstdFlags|log.Lshortfile)
+-		}
+-	}
++	// scrunch privacy patch: inherited environment cannot enable file logging.
+ 
+ 	return p
+ }
+@@ -1322,15 +1314,6 @@
+ 	fmt.Fprintf(os.Stderr, "Caught panic:\r\n\r\n%s\r\n\r\nRestoring terminal...\r\n\r\n", rec)
+ 	stack := strings.ReplaceAll(fmt.Sprintf("%s\n", debug.Stack()), "\n", "\r\n")
+ 	fmt.Fprint(os.Stderr, stack)
+-	if v, err := strconv.ParseBool(os.Getenv("TEA_DEBUG")); err == nil && v {
+-		f, err := os.Create(fmt.Sprintf("bubbletea-panic-%d.log", time.Now().Unix()))
+-		if err == nil {
+-			defer f.Close()        //nolint:errcheck
+-			fmt.Fprintln(f, rec)   //nolint:errcheck
+-			fmt.Fprintln(f)        //nolint:errcheck
+-			fmt.Fprintln(f, stack) //nolint:errcheck
+-		}
+-	}
+ }
+ 
+ // recoverFromGoPanic recovers from a goroutine panic, prints a stack trace and
+@@ -1347,15 +1330,6 @@
+ 	fmt.Fprintf(os.Stderr, "Caught panic:\r\n\r\n%s\r\n\r\nRestoring terminal...\r\n\r\n", rec)
+ 	stack := strings.ReplaceAll(fmt.Sprintf("%s\n", debug.Stack()), "\n", "\r\n")
+ 	fmt.Fprint(os.Stderr, stack)
+-	if v, err := strconv.ParseBool(os.Getenv("TEA_DEBUG")); err == nil && v {
+-		f, err := os.Create(fmt.Sprintf("bubbletea-panic-%d.log", time.Now().Unix()))
+-		if err == nil {
+-			defer f.Close()        //nolint:errcheck
+-			fmt.Fprintln(f, rec)   //nolint:errcheck
+-			fmt.Fprintln(f)        //nolint:errcheck
+-			fmt.Fprintln(f, stack) //nolint:errcheck
+-		}
+-	}
+ }
+ 
+ // ReleaseTerminal restores the original terminal state and cancels the input
+--- a/vendor/github.com/charmbracelet/colorprofile/env.go
++++ b/vendor/github.com/charmbracelet/colorprofile/env.go
+@@ -1,10 +1,7 @@
+ package colorprofile
+ 
+ import (
+-	"bytes"
+-	"context"
+ 	"io"
+-	"os/exec"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -228,9 +225,8 @@
+ 	return
+ }
+ 
+-// Tmux returns the color profile based on `tmux info` output. Tmux supports
+-// overriding the terminal's color capabilities, so this function will return
+-// the color profile based on the tmux configuration.
++// Tmux returns an environment-based fallback for tmux. The scrunch vendored build
++// never executes tmux; Detect also considers the environment and terminfo.
+ func Tmux(env []string) Profile {
+ 	return tmux(newEnviron(env))
+ }
+@@ -240,25 +236,9 @@
+ 	if tmux, ok := env.lookup("TMUX"); !ok || len(tmux) == 0 {
+ 		// Not in tmux
+ 		return NoTTY
+-	}
+-
+-	// Check if tmux has either Tc or RGB capabilities. Otherwise, return
+-	// ANSI256.
+-	p = ANSI256
+-	cmd := exec.CommandContext(context.Background(), "tmux", "info")
+-	out, err := cmd.Output()
+-	if err != nil {
+-		return
+ 	}
+ 
+-	for line := range bytes.SplitSeq(out, []byte("\n")) {
+-		if (bytes.Contains(line, []byte("Tc")) || bytes.Contains(line, []byte("RGB"))) &&
+-			bytes.Contains(line, []byte("true")) {
+-			return TrueColor
+-		}
+-	}
+-
+-	return
++	return ANSI256
+ }
+ 
+ // environ is a map of environment variables.

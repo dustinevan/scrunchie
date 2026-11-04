@@ -1,0 +1,5 @@
+/bin/
+/.scratch/
+/.cache/
+*.test
+.DS_Store
