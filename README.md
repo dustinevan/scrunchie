@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="scrunchie running its offline demo: SQL with neon syntax colors, a results grid, a JSON tree inspector, and bytea display formats">
+  <img src="docs/assets/demo.gif" alt="scrunchie's offline demo driven by habits: Ctrl+J runs, j and k move through results, l and q open and close a JSON tree, v cycles bytea formats, Ctrl+D explains why it does nothing, ? shows the keys for this pane, and typing a name filters the database tree">
 </p>
 
 scrunchie browses catalogs, edits and runs SQL, and navigates typed results,
