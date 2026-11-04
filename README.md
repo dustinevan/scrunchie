@@ -5,9 +5,9 @@
 <h1 align="center">scrunchie</h1>
 
 <p align="center">
-  <b>A totally rad PostgreSQL IDE for your terminal. Just start typing.</b><br>
-  There's no keymap to learn. Press what you'd press in vim, psql, your editor,<br>
-  or a spreadsheet, and scrunchie does that thing, right where you are.
+  <b>A totally rad PostgreSQL IDE for your terminal that totally gets you.</b><br>
+  Just start typing. There's no keymap to learn: press what you'd press in vim,<br>
+  psql, your editor, or a spreadsheet, and scrunchie does that thing, right where you are.
 </p>
 
 <p align="center">
