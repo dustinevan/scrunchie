@@ -5,9 +5,9 @@
 <h1 align="center">scrunchie</h1>
 
 <p align="center">
-  <b>A totally rad PostgreSQL IDE for your terminal that never phones home.</b><br>
-  One Go binary. Local or over SSH. No telemetry, no update checks, no HTTP client, no AI.<br>
-  Just you, your SQL, and a little neon.
+  <b>A totally rad PostgreSQL IDE for your terminal. Just start typing.</b><br>
+  There's no keymap to learn. Press what you'd press in vim, psql, your editor,<br>
+  or a spreadsheet, and scrunchie does that thing, right where you are.
 </p>
 
 <p align="center">
@@ -15,10 +15,10 @@
 </p>
 
 scrunchie browses catalogs, edits and runs SQL, and navigates typed results,
-including bytea and JSON, without sending anything anywhere except the
-PostgreSQL servers you choose. It's built with [Charm](https://charm.sh)'s
-Bubble Tea v2 and Lip Gloss v2, and [pgx](https://github.com/jackc/pgx) for the
-PostgreSQL wire protocol. The binary is `scrunch`.
+including bytea and JSON. It's one Go binary, `scrunch`, that runs on your
+laptop or over SSH and talks only to the databases you connect it to. It's built
+with [Charm](https://charm.sh)'s Bubble Tea v2 and Lip Gloss v2, and
+[pgx](https://github.com/jackc/pgx) for the PostgreSQL wire protocol.
 
 ## Get it
 
@@ -32,32 +32,47 @@ make install   # put scrunch on your PATH
 
 Build from the repository rather than `go install …@latest`. The Makefile
 builds from the vendored dependencies, which carry
-[a small privacy patch](docs/vendor-privacy.patch) to Charm. `go install` would
-download unpatched modules instead. `make list` shows every command.
+[a small patch](docs/vendor-privacy.patch) to Charm that `go install` would
+skip. `make list` shows every command.
 
-## It can't phone home. Check for yourself.
+## Just start typing
 
-Don't take my word for it:
+You already know how to use scrunchie. Every place in the app (the SQL editor,
+results, the database tree, the value inspector, help) knows what you can do
+there and the keys people reach for from other tools. Press the one your hands
+expect:
 
-```sh
-make privacy
-```
+| You press | Because you know | scrunchie |
+| --- | --- | --- |
+| A table's name, in the database tree | Every list UI | Filters the tree as you type |
+| `j` `k` `h` `l`, `g` `G` | vim, less | Moves through results, JSON, and help |
+| `q` | vim, less, man | Backs out one level, and never quits |
+| `y` in the inspector | vim | Copies the value |
+| `F5`, `Cmd+Enter` | SSMS, pgAdmin, DataGrip | Runs the SQL at the cursor |
+| `Shift+Space`, `Ctrl+Space` | Spreadsheets | Selects the row or column |
+| `Ctrl+R` in SQL | Your shell | Searches query history |
+| `\d users`, `\dt`, `\l`, `\q` | psql | Opens the table's structure, filters the tree, lists databases, quits |
+| `?` | Most TUIs | Shows what you can do right here |
 
-That runs a test that reads the binary's whole import graph. It fails if any
-HTTP, mail, or RPC client is linked in, if scrunchie's own code imports
-networking or process-launching packages, or if any dependency other than
-Bubble Tea pulls in `os/exec`. Bubble Tea links it for an optional API that
-scrunchie never calls. The target then lists every third-party package in the
-binary: Charm's terminal libraries, pgx, and `golang.org/x/text`. That's it.
+When it's ambiguous, scrunchie doesn't guess. Ctrl+D means half-page in vim,
+exit in psql, and delete in editors, so it does nothing and the status line
+tells you the key for each meaning: "page down is PgDn · quit is Ctrl+Q". Outside
+of text you're typing, the same goes for any key that means nothing where you
+are: you get a one-line hint instead of silence.
 
-You can also check by hand. The first command prints nothing; the second lists
-open network sockets while scrunch runs in another terminal, and it prints
-nothing until you connect to a database:
+Guessing is safe:
 
-```sh
-go list -mod=vendor -deps ./app/scrunch | grep net/http
-lsof -nP -a -i -c scrunch
-```
+- Repeating a guess is harmless. `g` goes to the top, so vim's `gg` does too.
+  Mashing `q` backs you out and never types a `q` into your SQL.
+- Nothing costly (running SQL, quitting, connecting, disconnecting, writing a
+  file) ever happens on a key that could mean something else.
+- psql commands never reach the server, where they'd only be a syntax error.
+
+Press `?` in any pane outside the SQL editor, or F1 anywhere, to see everything
+you can do there, including the keys that deliberately do nothing. A single
+table drives the keys, that help screen, and a test that checks each habit
+against the key it stands for, so the help always matches what the keys do.
+The full table and rules are in [keyboard and mouse behavior](docs/KEYS.md).
 
 ## First launch
 
@@ -100,22 +115,6 @@ bin/scrunch --write 'postgres://user@localhost/app?sslmode=disable'
 Put command options before a positional connection string. Headless commands
 continue to use PostgreSQL environment settings when no connection string is
 provided.
-
-## Press what you'd press
-
-You don't have to learn scrunchie's keys. Each place in the app knows what you
-can do there and the keys people bring from vim, less, readline, desktop
-editors, spreadsheets, SQL GUIs, and psql. So `j`/`k` move through results,
-`q` backs out of the inspector, F5 runs SQL, typing a name filters the database
-tree, and running `\d users` opens the table's structure instead of a syntax
-error.
-
-A key whose meaning differs between tools, like Ctrl+D (half-page, exit, or
-delete), deliberately does nothing and tells you the key for each meaning.
-Repeating a guess is harmless, and nothing costly (running SQL, quitting,
-disconnecting, writing files) happens on a key that could mean something else.
-Press `?` in any pane to see what you can do there. The rules and the full
-habit table are in [keyboard and mouse behavior](docs/KEYS.md).
 
 ## Safe by default
 
@@ -374,7 +373,6 @@ would discard it. Terminal environment and terminfo still determine colors.
 ```sh
 make check
 make race
-make privacy
 make gif      # re-record docs/assets/demo.gif from docs/demo.tape; needs Charm's VHS
 ```
 
@@ -395,8 +393,7 @@ The code is organized as `app / lib / pkg`; see [architecture](docs/ARCHITECTURE
 ## Who made this
 
 scrunchie is made by Dustin Currie, who also builds Senda, a language-learning
-platform. scrunchie is its opposite in one way: it never talks to anything but
-your database. The mascot was modeled and rendered in Blender.
+platform. The mascot was modeled and rendered in Blender.
 
 Issues and pull requests are welcome, especially from Charm fans with opinions
 about neon.

@@ -3,7 +3,7 @@ VERSION ?= dev
 
 .DEFAULT_GOAL := list
 
-.PHONY: list help run demo build check test race privacy gif vendor release install
+.PHONY: list help run demo build check test race gif vendor release install
 
 list: ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "; print "scrunch commands\n"} /^[a-zA-Z0-9_.-]+:.*## / {printf "  make %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -28,11 +28,6 @@ test: ## Run tests (database tests use SCRUNCH_TEST_DSN when set)
 
 race: ## Run tests with the race detector
 	$(GO) test -mod=vendor -race ./...
-
-privacy: build ## Prove scrunch cannot phone home: no HTTP client, no unexpected process launchers
-	$(GO) test -mod=vendor -run TestBinaryCannotPhoneHome -v ./app/scrunch
-	@echo "Third-party packages linked into bin/scrunch:"
-	@$(GO) list -mod=vendor -deps -f '{{if not .Standard}}  {{.ImportPath}}{{end}}' ./app/scrunch | grep -v dustinevan/scrunchie | grep .
 
 gif: build ## Record docs/assets/demo.gif from docs/demo.tape (needs Charm's vhs)
 	@mkdir -p .scratch/vhs-home .scratch/tweet docs/assets
