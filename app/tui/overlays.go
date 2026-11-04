@@ -23,7 +23,7 @@ var commands = []command{
 	{"run", "Run selection or statement at cursor", "Ctrl+J"},
 	{"run-all", "Run entire SQL buffer", ""},
 	{"editor", "Focus SQL editor", "F2"},
-	{"results", "Focus query results", "F5"},
+	{"results", "Focus query results", ""},
 	{"catalog", "Focus database catalog", "F6"},
 	{"new", "New SQL buffer", "Ctrl+N"},
 	{"open", "Open SQL file", "Ctrl+O"},
@@ -54,9 +54,9 @@ var commands = []command{
 	{"next-result", "Next statement result", "]"},
 	{"previous-result", "Previous statement result", "["},
 	{"refresh", "Refresh database catalog", "Ctrl+R"},
-	{"insert-name", "Insert selected catalog identifier", "i"},
-	{"preview", "Prepare SELECT for catalog table", "p"},
-	{"structure", "Show table structure", "d"},
+	{"insert-name", "Insert selected catalog identifier", ""},
+	{"preview", "Prepare SELECT for catalog table", ""},
+	{"structure", "Show table structure", ""},
 	{"ddl", "Show DDL", "D"},
 	{"count", "Prepare table row-count query", ""},
 	{"begin", "Prepare BEGIN transaction", ""},
@@ -65,13 +65,15 @@ var commands = []command{
 	{"explain", "Prepare EXPLAIN (FORMAT JSON) for SQL", ""},
 	{"reconnect", "Reconnect this buffer's connection (new session)", ""},
 	{"buffer-connection", "Change buffer connection…", ""},
-	{"disconnect", "Disconnect this connection", "x"},
+	{"disconnect", "Disconnect this connection", ""},
+	{"edit-database", "Edit the selected database's saved settings", ""},
+	{"disconnect-database", "Disconnect the selected database", ""},
 	{"allow-writes", "Allow writes on this connection…", ""},
 	{"read-only", "Make this connection read-only", ""},
 	{"sidebar", "Toggle catalog sidebar", "F9"},
 	{"maximize", "Maximize focused pane", "F10"},
 	{"message", "Read last status or error", ""},
-	{"help", "Keyboard reference", "F1"},
+	{"help", "What you can do here, and every key", "F1 · ?"},
 	{"quit", "Quit scrunch", "Ctrl+Q"},
 }
 
@@ -105,8 +107,18 @@ func (m *Model) modalHolds() bool {
 func (m *Model) paletteItems() []command {
 	query := strings.ToLower(string(m.modal.input.text))
 	var items []command
+	// "." lists only what applies to the selected database-pane row.
+	rowActions := map[string]bool{"preview": true, "structure": true, "ddl": true, "count": true, "insert-name": true}
+	if rows := m.databaseRows(); m.modal.kind == "catalog-actions" && m.databasePane.index < len(rows) {
+		switch rows[m.databasePane.index].kind {
+		case databaseConnection:
+			rowActions = map[string]bool{"edit-database": true, "disconnect-database": true, "refresh": true}
+		case databaseSaved:
+			rowActions = map[string]bool{"edit-database": true}
+		}
+	}
 	for _, item := range commands {
-		if m.modal.kind == "catalog-actions" && item.id != "preview" && item.id != "structure" && item.id != "ddl" && item.id != "count" && item.id != "insert-name" {
+		if m.modal.kind == "catalog-actions" && !rowActions[item.id] {
 			continue
 		}
 		if strings.Contains(strings.ToLower(item.label+" "+item.key), query) {
@@ -136,9 +148,9 @@ func (m *Model) modalKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	if m.modal.kind == "help" || m.modal.kind == "message" {
-		text := helpText
-		if m.modal.kind == "message" {
-			text = termtext.SafeMultiline(m.modal.message)
+		text := termtext.SafeMultiline(m.modal.message)
+		if m.modal.kind == "help" {
+			text = m.referenceText()
 		}
 		content := m.centeredRect(max(1, min(96, m.width-4)), max(1, min(m.dimensions().bodyHeight, 24))).content()
 		width, rows := max(1, content.width), max(1, content.height-1)
@@ -489,7 +501,16 @@ func (m *Model) action(id string) tea.Cmd {
 		}
 		m.modal = modal{kind: "message", title: "Last query details", message: text}
 	case "help":
-		m.modal = modal{kind: "help", title: "Keyboard reference"}
+		m.openHelp()
+	case "edit-database", "disconnect-database":
+		if m.focus != catalogPane {
+			m.status, m.statusError = "Select a database in the left pane first (F6)", false
+			return nil
+		}
+		if id == "edit-database" {
+			return m.databasePaneKey(keyMsg("e"))
+		}
+		return m.databasePaneKey(keyMsg("x"))
 	case "quit":
 		m.quitIntent, m.quitConfirmed = true, false
 		m.quitDiscard = make(map[uint64]bool)

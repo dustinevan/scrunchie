@@ -156,9 +156,9 @@ func (m *Model) promptLayout(width, height int) dialogLayout {
 			lines = append(lines, line)
 		}
 	case "help", "message":
-		text := helpText
-		if m.modal.kind == "message" {
-			text = termtext.SafeMultiline(m.modal.message)
+		text := termtext.SafeMultiline(m.modal.message)
+		if m.modal.kind == "help" {
+			text = m.referenceText()
 		}
 		all := strings.Split(ansi.Hardwrap(text, contentWidth, false), "\n")
 		rows := max(1, m.centeredRect(boxWidth, boxHeight).content().height-1)

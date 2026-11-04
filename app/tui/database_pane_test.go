@@ -401,3 +401,11 @@ func TestCatalogExpansionFailureAndQueuedCollapseRemainRecoverable(t *testing.T)
 		t.Fatal("collapse did not cancel only the queued metadata expansion")
 	}
 }
+
+// rowAction performs a database-pane row action the way "." and the command
+// palette do. Typed letters in the pane filter instead.
+func rowAction(m *Model, letter rune) tea.Cmd {
+	cmd := m.databasePaneKey(key(letter))
+	m.prepareView()
+	return cmd
+}

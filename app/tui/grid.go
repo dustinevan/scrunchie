@@ -65,6 +65,16 @@ func (m *Model) gridKey(msg tea.KeyPressMsg) tea.Cmd {
 			m.focusPane(editorPane)
 		}
 		return nil
+	case "q":
+		// Like Esc, but q never leaves results: a second q would type into SQL.
+		if r.rowAnchor >= 0 {
+			r.rowAnchor, r.columnAnchor = -1, -1
+		} else if r.view.filter != "" {
+			m.filterRows("")
+		} else {
+			m.status, m.statusError = "Nothing to clear · Esc goes back to SQL · Ctrl+Q quits", false
+		}
+		return nil
 	case "/":
 		m.beginSearch()
 		return nil
@@ -117,6 +127,22 @@ func (m *Model) gridKey(msg tea.KeyPressMsg) tea.Cmd {
 	if key == "ctrl+a" {
 		r.rowAnchor, r.columnAnchor = 0, 0
 		r.row, r.column = len(rows)-1, len(set.Columns)-1
+		return nil
+	}
+	// Spreadsheet habits: Shift+Space selects the row, Ctrl+Space the column.
+	// Pressing either again selects the same cells.
+	switch key {
+	case "shift+space":
+		r.row = min(r.row, len(rows)-1)
+		r.rowAnchor, r.columnAnchor = r.row, 0
+		r.column = len(set.Columns) - 1
+		m.status, m.statusError = "Row selected · Ctrl+C copies it · y copies as…", false
+		return nil
+	case "ctrl+space", "ctrl+@":
+		r.column = min(r.column, len(set.Columns)-1)
+		r.rowAnchor, r.columnAnchor = 0, r.column
+		r.row = len(rows) - 1
+		m.status, m.statusError = "Column selected · Ctrl+C copies it · y copies as…", false
 		return nil
 	}
 	if key == "+" || key == "=" || key == "-" {

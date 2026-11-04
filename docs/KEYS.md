@@ -1,5 +1,73 @@
 # Keyboard, mouse, and focus
 
+## You don't learn scrunch's keys; it learns yours
+
+Press what you'd press in the tool you came from. Every place in the app (SQL,
+results, the database tree, the value inspector, the structure view, help, and
+confirmations) has a table of what you can do there and every key someone
+might try for it, drawn from vim and less, readline, desktop editors,
+spreadsheets, SQL GUIs, and psql. Press `?` in any pane, or F1 anywhere, to see
+that table for where you are.
+
+The rules keep guessing safe:
+
+1. **A habit acts only when the tools agree.** `j` means down in every tool that
+   binds it in a grid, so it moves down in results. In the inspector, `y` means
+   copy to vim users and to anyone who knows results' `y`, so it copies.
+2. **Ambiguous keys do nothing, on purpose, and say why.** Ctrl+D means
+   half-page in vim, exit in psql, and delete in editors, so it changes nothing
+   and the status line names the keys for each intent: "page down is PgDn ·
+   quit is Ctrl+Q". A key with no meaning in a place says what that place does.
+   Help lists the deliberately inert keys for each place.
+3. **Repeating a guess is harmless.** `g` jumps to the top, so vim's `gg` lands
+   there too. `q` backs out one level and never quits; pressing it again after
+   it closed a view does not type a `q` into SQL or the tree filter.
+4. **Costly actions never come from a guess.** Running SQL, quitting,
+   connecting, disconnecting, and writing files happen only on keys that mean
+   exactly that. Habits translate only to reversible actions. Cmd+C copies and
+   never cancels a query, even though Ctrl+C cancels one first.
+
+The same table drives the keys, the help, and a contract test that presses
+every habit beside the key it stands for and compares the screens.
+
+| Habit | Where | Does |
+| --- | --- | --- |
+| `h` `j` `k` `l`, `g` `G` | Results, inspector, structure, help | Move; first / last |
+| `0` `^` `$` | Results | First / last column |
+| `n` | Results, inspector, structure | Next match (F3) |
+| `q` | Inspector, structure, help | Back out one level, like Esc |
+| `q` | Results | Clear the selection or filter; never leaves results |
+| `y` | Inspector, structure | Copy |
+| `b` `f` `Space` | Help | Page up / down |
+| `?` | Any pane | What you can do here |
+| Letters | Database tree | Type a name to filter |
+| Shift+Space, Ctrl+Space | Results | Select the row / column |
+| F5, Cmd+Enter | Everywhere | Run (as in SQL GUIs) |
+| Ctrl+Shift+P, Cmd+P | Everywhere | Search every command |
+| Ctrl+R | SQL | Search query history (as in shells) |
+| Cmd+S, Cmd+Z, Cmd+A, Cmd+X, Cmd+/ … | SQL | Their Ctrl equivalents |
+| `\d name`, `\dt`, `\l`, `\c`, `\?`, `\q`, `exit` | Run from SQL | The scrunch equivalent; never sent to the server |
+
+Cmd keys arrive only in terminals that forward them (for example with the kitty
+keyboard protocol); most terminals keep Cmd+C, Cmd+V, and Cmd+W for themselves.
+F-keys need Fn on many laptops, so every F-key action also has another route.
+
+### psql commands
+
+Running a psql command line does what psql users expect instead of sending a
+backslash the server can only reject. `\d name` opens the table's structure when
+it is in the loaded catalog, and otherwise filters the database tree to it.
+`\d`, `\dt`, `\dv`, `\dn`, `\df`, and the rest show the database tree, filtered to
+the pattern when there is one. `\l` and `\c` open the database manager. `\?`
+opens help. `\q`, `exit`, and `quit` start the normal quit checks; a buffer
+holding nothing but that command is not offered for saving. `\x`, `\timing`,
+`\copy`, `\i`, `\e`, and `\g` explain their scrunch equivalents, and anything
+else says it isn't available. Nothing is sent to the server. A psql line
+directly above SQL in the same statement is skipped, as psql would run it on
+its own; a backslash inside a string literal is never treated as a command.
+
+## The basics
+
 scrunch follows the current selection: text keys edit text, arrows move through
 cells or tree branches, Enter activates, and Escape backs out of the current
 layer. Printable navigation commands apply only to databases, results, the
@@ -32,7 +100,7 @@ history, and the command palette always belong to that input.
   returns to results. In a dialog it cancels that dialog and restores the
   underlying view.
 
-Each pane remembers its cursor or selected item. Click a pane, use F2/F5/F6,
+Each pane remembers its cursor or selected item. Click a pane, use F2/F6,
 or follow these boundary arrows to change focus. Small terminals show one pane
 at a time while preserving the same routes.
 
@@ -96,7 +164,7 @@ change focus. An open value inspector remains a snapshot of its original cell.
 | `Ctrl+B` | Open saved databases; with no saved entries, open Add database |
 | `F1`, `F7` | Keyboard reference; arrows and Page Up/Down scroll |
 | `F2` | Focus the SQL editor |
-| `F5` | Focus results |
+| `F5` | Run, as in SQL GUIs (same as Ctrl+J) |
 | `F6` | Focus and show databases, keeping their selected row |
 | `Ctrl+Tab`, `Ctrl+Shift+Tab` | Next/previous pane where the terminal forwards these keys |
 | `Ctrl+J` | Run selected SQL, or the statement at the cursor, on the buffer's connection |
@@ -111,7 +179,7 @@ change focus. An open value inspector remains a snapshot of its original cell.
 
 In the database and result panes, `Tab` and `Shift+Tab` move between panes.
 In the editor they indent and dedent. Ctrl+Tab and Ctrl+Shift+Tab also cycle
-panes from SQL or the inspector, with F2/F5/F6 and palette fallbacks for SSH.
+panes from SQL or the inspector, with F2/F6 and palette fallbacks for SSH.
 Dialogs keep traversal inside their own fields, buttons, or lists.
 
 The palette also provides Run entire buffer, Change buffer connection, Disconnect
@@ -312,9 +380,10 @@ saved connections that are not open. An open connection reads `● name`, with
 `[writes]` when writable, `[tx]` or `[tx failed]` during a transaction, and
 "disconnected" when its session was lost. Saved entries read `○ name`. Home
 selects Add; End selects the last visible item. Add remains pinned while the
-tree scrolls. `+` or `n` opens Add from any row, and `e` edits a selected saved
-connection. Removing saved entries is available in the Ctrl+B manager; Delete in
-the pane does not delete databases or catalog objects.
+tree scrolls. `+` opens Add from any row. Typing a name filters the tree, and
+`.` lists the actions for the selected row, including Edit and Disconnect.
+Removing saved entries is available in the Ctrl+B manager; Delete in the pane
+does not delete databases or catalog objects, and says so.
 
 Enter/Space on a saved connection explicitly connects it. On another open
 connection they switch to its most recently used buffer, opening one if needed,
@@ -334,12 +403,10 @@ Each schema lists tables and views first, with muted kind suffixes such as
 | Right | Move straight to SQL from any row, keeping its cursor and selection |
 | Left | Collapse, then move to the parent |
 | `Enter`, `Space` | Toggle containers, or show column, function, or sequence details |
-| `d` | Structure of a table, view, or a column's table; DDL of a function or sequence |
-| `x` | Disconnect the selected connection, asking first if that rolls back or cancels work |
-| `i` | Insert the identifier and focus the editor |
-| `p` | Prepare a `SELECT ... LIMIT 100` buffer |
-| `.` | SELECT, structure, DDL, count, and identifier actions |
-| `/`, `Ctrl+F` | Filter loaded names and column metadata across every connection |
+| Letters, digits, `_` | Filter by name as you type; the filter shows in the pane title |
+| Backspace, Ctrl+U | Edit or clear the typed filter |
+| `.` | Actions for the row: prepare SELECT (`LIMIT 100`) or COUNT, structure, DDL, insert the identifier, edit settings, disconnect (asking first if that rolls back or cancels work), refresh |
+| `/`, `Ctrl+F` | Start typing a filter; it matches names and column metadata across every connection |
 | `Esc` | Clear the catalog filter first; otherwise return to SQL |
 | `Ctrl+R` | Refresh the selected row's connection catalog |
 | `Ctrl+C` | Copy the identifier when idle |
@@ -350,6 +417,13 @@ keeps the selected object when it remains visible. A filter with no matches
 still leaves the databases and Add reachable. A new filter selects its first
 matching object; F3 advances between actual matches, skipping ancestor-only rows.
 
+The filter is typed in place, with matches visible as you type. Up/Down and
+Page Up/Down choose among them while you keep typing. Enter opens the selection
+and keeps the filter, Esc clears it, and Right goes to SQL with the filter kept.
+A letter after that starts a new filter; Backspace resumes editing the current
+one. Because letters always filter here, the row actions live on `.`, Enter,
+and the command palette rather than on single letters.
+
 Schemas, relations, functions, and columns load asynchronously. Expansions
 requested while SQL or a refresh runs wait with a spinner and load afterward.
 Collapsing a loading branch keeps it collapsed when its metadata arrives.
@@ -359,13 +433,14 @@ PostgreSQL request inside a transaction can abort that transaction.
 
 ## Structure view
 
-`d` opens a read-only view of the selected table: columns with types, nullability,
-defaults, identity or generated expressions, and comments; primary key and
-unique constraints; foreign keys and the tables that reference this one;
-indexes with size; check constraints; triggers; and the table comment, owner,
-estimated row count, and total size. Views also show their definition. Row
-counts are PostgreSQL's estimate. Sizes are skipped inside a transaction because
-reading them can wait on locks. The view needs PostgreSQL 12 or later.
+`.` → Structure, or `\d name` run from SQL, opens a read-only view of the
+selected table: columns with types, nullability, defaults, identity or
+generated expressions, and comments; primary key and unique constraints;
+foreign keys and the tables that reference this one; indexes with size; check
+constraints; triggers; and the table comment, owner, estimated row count, and
+total size. Views also show their definition. Row counts are PostgreSQL's
+estimate. Sizes are skipped inside a transaction because reading them can wait
+on locks. The view needs PostgreSQL 12 or later.
 
 | Key | Action |
 | --- | --- |

@@ -10,6 +10,8 @@ func (m *Model) focusPane(target pane) {
 	m.completeAfterCatalog = false
 	m.mouse.drag = ""
 	m.gridScrolling = false
+	// Leaving the database pane ends filter typing; the filter itself stays.
+	m.databasePane.typing = false
 	if target == catalogPane {
 		m.showCatalog = true
 		m.databasePane.manualScroll = false

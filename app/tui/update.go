@@ -94,6 +94,32 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		m.gridScrolling = false
 		m.inspector.scrolling = false
 		key := msg.String()
+		// Habits translate to the keys the handlers understand; inert and
+		// unknown keys stop here with a hint. See habits.go.
+		here := m.place()
+		closedWithQ := m.closedWithQ
+		m.closedWithQ = false
+		if closedWithQ && key == "q" && (here == placeSQL || here == placeDatabases) {
+			// A second q after q closed a view would otherwise type a q.
+			m.closedWithQ = true
+			m.status, m.statusError = "q already closed it · Esc also backs out · Ctrl+Q quits", false
+			return m, nil
+		}
+		if (here == placeDatabases || here == placeFilter) && filterRune(key) {
+			m.typeFilter(key)
+			return m, nil
+		}
+		if here != "" {
+			canonical, hint, _ := habit(here, key)
+			if canonical == "" {
+				m.status, m.statusError = hint, false
+				return m, nil
+			}
+			if canonical != key {
+				m.closedWithQ = key == "q"
+				key, msg = canonical, keyMsg(canonical)
+			}
+		}
 		// Ctrl+C cancels the current buffer's query before a connect or lookup
 		// running beside it, unless the database dialogs are open or the
 		// connect replaces this very connection.
@@ -128,17 +154,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if key == "ctrl+q" {
-			if m.profileBusy {
-				m.status = "Wait for database settings to finish saving before quitting"
-				return m, nil
-			}
-			if !m.fileBusy && !strings.HasPrefix(m.modal.kind, "confirm") {
-				m.connectionForm = connectionForm{}
-				m.quitIntent, m.closeIntent, m.quitConfirmed = true, false, false
-				m.quitDiscard = make(map[uint64]bool)
-				return m, m.continueQuit()
-			}
-			return m, nil
+			return m, m.beginQuit()
 		}
 		if m.modal.kind != "" {
 			return m, m.modalKey(msg)
@@ -154,13 +170,11 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 			m.openPrompt("palette", "Commands", "")
 			return m, nil
 		case "f1", "f7":
-			m.modal = modal{kind: "help", title: "Keyboard reference"}
+			m.openHelp()
 			return m, nil
-		case "f2", "f5", "f6":
+		case "f2", "f6":
 			if key == "f2" {
 				m.focusPane(editorPane)
-			} else if key == "f5" {
-				m.focusPane(resultsPane)
 			} else {
 				m.focusPane(catalogPane)
 			}
@@ -185,7 +199,7 @@ func (m *Model) Update(message tea.Msg) (tea.Model, tea.Cmd) {
 		case "f3":
 			m.findNext(m.lastSearch)
 			return m, nil
-		case "ctrl+c":
+		case "ctrl+c", copyKey:
 			return m, m.copySelection(false)
 		case "ctrl+v":
 			m.status, m.statusError = "Use your terminal's Paste command; scrunch never reads the system clipboard", false
@@ -445,6 +459,14 @@ func (m *Model) runSQL(all bool) tea.Cmd {
 	m.fetchPending = false
 	b := &m.buffers[m.bufferIndex]
 	c := m.conn()
+	// psql habits (\d users, \q, exit) work with or without a connection and
+	// are never sent to the server. See psql.go.
+	if !more {
+		escapes := c != nil && c.session.BackslashEscapes()
+		if cmd, handled := m.psqlFromEditor(escapes); handled {
+			return cmd
+		}
+	}
 	switch {
 	case c == nil && len(m.connections) == 0:
 		m.status, m.statusError = "No PostgreSQL session is connected · Ctrl+B adds a database", true
@@ -483,6 +505,12 @@ func (m *Model) runSQL(all bool) tea.Cmd {
 			sql = statements[index].Text
 			offset = utf8.RuneCountInString(source[:statements[index].Start])
 		}
+	}
+	// psql runs a command line above SQL on its own; skip it rather than send
+	// a backslash the server can only reject.
+	for !more && isPsqlLine(firstLine(sql)) && strings.Contains(sql, "\n") {
+		line, rest, _ := strings.Cut(sql, "\n")
+		sql, offset = rest, offset+utf8.RuneCountInString(line)+1
 	}
 	if strings.TrimSpace(sql) == "" {
 		m.status, m.statusError = "The editor has no SQL to run", false
@@ -539,4 +567,20 @@ func (m *Model) queryCommand(c *connection) tea.Cmd {
 		batch, err := session.Execute(ctx, sql, limits)
 		return queryMsg{conn: id, serial: serial, batch: batch, err: err}
 	}
+}
+
+// beginQuit starts the quit checks for unsaved SQL, open transactions, and
+// running queries. Ctrl+Q and psql's \q both use it.
+func (m *Model) beginQuit() tea.Cmd {
+	if m.profileBusy {
+		m.status = "Wait for database settings to finish saving before quitting"
+		return nil
+	}
+	if m.fileBusy || strings.HasPrefix(m.modal.kind, "confirm") {
+		return nil
+	}
+	m.connectionForm = connectionForm{}
+	m.quitIntent, m.closeIntent, m.quitConfirmed = true, false, false
+	m.quitDiscard = make(map[uint64]bool)
+	return m.continueQuit()
 }

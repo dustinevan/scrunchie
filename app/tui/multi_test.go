@@ -168,7 +168,7 @@ func TestDisconnectAsksFirstThenUnbindsBuffersAndDropsLateReplies(t *testing.T) 
 	a.txStatus = 'T'
 	m.focusPane(catalogPane)
 	m.selectDatabaseRow(connectionRowIndex(m.databaseRows(), a.id))
-	press(m, 'x')
+	rowAction(m, 'x')
 	if m.modal.kind != "confirm-disconnect" || m.modal.index != 0 || !strings.Contains(m.modal.message, "roll back its open transaction") {
 		t.Fatalf("disconnecting a transaction did not ask first: %q %q", m.modal.kind, m.modal.message)
 	}
@@ -176,7 +176,7 @@ func TestDisconnectAsksFirstThenUnbindsBuffersAndDropsLateReplies(t *testing.T) 
 	if m.modal.kind != "" || m.connectionFor(a.id) == nil || !strings.Contains(m.status, "still connected") {
 		t.Fatal("the default choice disconnected")
 	}
-	press(m, 'x')
+	rowAction(m, 'x')
 	press(m, tea.KeyRight)
 	press(m, tea.KeyEnter)
 	if m.connectionFor(a.id) != nil || len(m.connections) != 1 || m.buffers[0].conn != 0 || m.buffers[1].conn != 0 || m.buffers[2].conn != b.id {
@@ -203,7 +203,7 @@ func TestDisconnectAsksFirstThenUnbindsBuffersAndDropsLateReplies(t *testing.T) 
 	// Without a transaction or query, x closes at once.
 	m.focusPane(catalogPane)
 	m.selectDatabaseRow(connectionRowIndex(m.databaseRows(), b.id))
-	press(m, 'x')
+	rowAction(m, 'x')
 	if m.modal.kind != "" || len(m.connections) != 0 {
 		t.Fatal("an idle connection asked before disconnecting")
 	}
@@ -317,7 +317,7 @@ func TestCatalogTreesAndTheirActionsBelongToTheirConnection(t *testing.T) {
 	}
 	// Prepared SQL is bound to the row's connection, not the current buffer's.
 	m.selectDatabaseRow(3)
-	press(m, 'p')
+	rowAction(m, 'p')
 	if c := m.conn(); c != a || !strings.Contains(string(m.buffers[m.bufferIndex].editor.text), "alpha_table") {
 		t.Fatal("preview of a's table did not open on a")
 	}
@@ -330,12 +330,12 @@ func TestCatalogTreesAndTheirActionsBelongToTheirConnection(t *testing.T) {
 	// Structure reads use the row's connection; a's are queued behind its SQL.
 	m.focusPane(catalogPane)
 	m.selectDatabaseRow(connectionRowIndex(m.databaseRows(), b.id) + 2)
-	if cmd := press(m, 'd'); cmd == nil || m.structure.conn != b.id || !b.catalogBusy {
+	if cmd := rowAction(m, 'd'); cmd == nil || m.structure.conn != b.id || !b.catalogBusy {
 		t.Fatal("structure did not load from b")
 	}
 	press(m, tea.KeyEsc)
 	m.selectDatabaseRow(3)
-	if cmd := press(m, 'd'); cmd != nil || m.structure.conn != a.id || !m.structure.queued || a.catalogBusy {
+	if cmd := rowAction(m, 'd'); cmd != nil || m.structure.conn != a.id || !m.structure.queued || a.catalogBusy {
 		t.Fatal("structure on a did not wait for a's SQL")
 	}
 	m.Update(queryMsg{conn: a.id, serial: a.query.serial, batch: result.Batch{Connected: true, TxStatus: 'I'}})
@@ -470,7 +470,7 @@ func TestEditingAnOpenProfileRelabelsItsConnection(t *testing.T) {
 	}
 	m.focusPane(catalogPane)
 	m.selectDatabaseRow(1)
-	press(m, 'e')
+	rowAction(m, 'e')
 	if m.modal.kind != "connection" || m.modal.title != "Edit database" {
 		t.Fatalf("e opened %q %q", m.modal.kind, m.modal.title)
 	}
@@ -659,7 +659,7 @@ func TestBackgroundConnectLeavesOpenDialogsAndViewsAlone(t *testing.T) {
 	a.txStatus = 'T'
 	m.focusPane(catalogPane)
 	m.selectDatabaseRow(connectionRowIndex(m.databaseRows(), a.id))
-	press(m, 'x')
+	rowAction(m, 'x')
 	if m.modal.kind != "confirm-disconnect" {
 		t.Fatal("setup: no confirmation")
 	}

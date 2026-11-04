@@ -261,6 +261,9 @@ type Model struct {
 
 	catalogFilter string
 	databasePane  databasePaneState
+	// closedWithQ is true right after q closed a view, so a repeated q is
+	// not typed into the SQL or the database filter underneath.
+	closedWithQ bool
 
 	pendingRun    queryRun
 	history       []historyEntry

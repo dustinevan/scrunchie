@@ -18,8 +18,9 @@ func TestCatalogSearchSelectsActualMatchesAndF3Wraps(t *testing.T) {
 	}
 	m.focusPane(catalogPane)
 	m.beginSearch()
-	m.modal.input = newEditor("match")
-	m.modal.input.singleLine = true
+	for _, r := range "match" {
+		press(m, r)
+	}
 	press(m, tea.KeyEnter)
 	for _, want := range []string{"match_name", "other", "match_name"} {
 		_, node, ok := m.selectedCatalogNode()

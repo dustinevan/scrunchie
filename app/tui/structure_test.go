@@ -244,7 +244,7 @@ func TestStructureViewLoadsNavigatesCopiesAndReturnsToItsRow(t *testing.T) {
 	m.databasePaneKey(key(tea.KeyDown))
 	m.databasePaneKey(key(tea.KeyDown))
 	selection := m.databasePane.selection
-	if cmd := press(m, 'd'); cmd == nil || !m.structure.active || !m.structure.loading || !anyCatalogBusy(m) || m.structure.target.OID != 42 {
+	if cmd := rowAction(m, 'd'); cmd == nil || !m.structure.active || !m.structure.loading || !anyCatalogBusy(m) || m.structure.target.OID != 42 {
 		t.Fatal("d on a column did not request its table's structure")
 	}
 	if text := ansi.Strip(m.View().Content); !strings.Contains(text, "Loading structure") {
@@ -303,7 +303,7 @@ func TestStructureRequestsWaitForSQLAndIgnoreStaleReplies(t *testing.T) {
 	m := structureCatalog(catalogNode{kind: "relation", name: "claim_line", schema: "claims", relation: relation, detail: "table", parent: -1})
 	m.databasePaneKey(key(tea.KeyDown))
 	m.conn().query.running, m.conn().query.serial = true, 9
-	press(m, 'd')
+	rowAction(m, 'd')
 	if !m.structure.active || !m.structure.queued || anyCatalogBusy(m) {
 		t.Fatal("structure request ran while SQL owned the session")
 	}
@@ -319,20 +319,20 @@ func TestStructureRequestsWaitForSQLAndIgnoreStaleReplies(t *testing.T) {
 	}
 	m.focusPane(catalogPane)
 	m.conn().connected = false
-	if cmd := press(m, 'd'); cmd != nil || m.structure.active || !strings.Contains(m.status, "reconnect") {
+	if cmd := rowAction(m, 'd'); cmd != nil || m.structure.active || !strings.Contains(m.status, "reconnect") {
 		t.Fatal("structure request on a closed session did not explain reconnection")
 	}
 	saved := New(Config{Profiles: paneProfiles(1)})
 	saved.focusPane(catalogPane)
 	saved.selectDatabaseRow(1)
-	if cmd := press(saved, 'd'); cmd != nil || saved.modal.kind != "" || len(saved.profiles) != 1 || !strings.Contains(saved.status, "Ctrl+B") {
+	if cmd := rowAction(saved, 'd'); cmd != nil || saved.modal.kind != "" || len(saved.profiles) != 1 || !strings.Contains(saved.status, "Ctrl+B") {
 		t.Fatal("d on a saved database did something other than explain where removal lives")
 	}
 	demo := New(Config{Demo: true})
 	demo.focusActiveDatabase()
 	demo.databasePaneKey(key(tea.KeyDown))
 	demo.databasePaneKey(key(tea.KeyDown))
-	if cmd := press(demo, 'd'); cmd != nil || demo.structure.active || !strings.Contains(demo.status, "Demo") {
+	if cmd := rowAction(demo, 'd'); cmd != nil || demo.structure.active || !strings.Contains(demo.status, "Demo") {
 		t.Fatal("offline demo attempted a catalog request")
 	}
 }
@@ -343,7 +343,7 @@ func TestLateDDLReplyNeverTakesOverTheEditor(t *testing.T) {
 		m := structureCatalog(catalogNode{kind: "function", name: "paid_total", schema: "claims", routine: routine, parent: -1, loaded: true})
 		m.databasePaneKey(key(tea.KeyDown))
 		m.conn().query.running, m.conn().query.serial = true, 2
-		press(m, 'd')
+		rowAction(m, 'd')
 		if !m.ddl.queued || m.structure.active {
 			t.Fatal("d on a function did not queue its DDL")
 		}
@@ -427,7 +427,7 @@ func TestStructureAndDDLFromLiveCatalog(t *testing.T) {
 			t.Fatalf("live tree lacks %q:\n%s", want, text)
 		}
 	}
-	finishCommands(t, m, press(m, 'd'))
+	finishCommands(t, m, rowAction(m, 'd'))
 	if !m.structure.loaded || m.structure.err != "" {
 		t.Fatalf("structure did not load: %q", m.structure.err)
 	}
@@ -452,7 +452,7 @@ func TestStructureAndDDLFromLiveCatalog(t *testing.T) {
 	}
 	m.databasePaneKey(key(tea.KeyEnter))
 	m.databasePaneKey(key(tea.KeyDown))
-	finishCommands(t, m, press(m, 'd'))
+	finishCommands(t, m, rowAction(m, 'd'))
 	b = m.buffers[m.bufferIndex]
 	if !strings.HasPrefix(string(b.editor.text), "CREATE SEQUENCE claims.beneficiary_id_seq\n    AS bigint") || b.dirty {
 		t.Fatalf("sequence DDL got %q", string(b.editor.text))

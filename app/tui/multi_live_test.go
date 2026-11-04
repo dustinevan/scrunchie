@@ -267,7 +267,7 @@ func TestLiveCatalogStructureAndCompletionFollowTheirConnection(t *testing.T) {
 	m.selectDatabaseRow(find(b, "multi_other"))
 	finishCommands(t, m, press(m, tea.KeyEnter))
 	m.selectDatabaseRow(find(b, "only_here"))
-	finishCommands(t, m, press(m, 'd'))
+	finishCommands(t, m, rowAction(m, 'd'))
 	if !m.structure.loaded || m.structure.conn != b.id || m.structure.data.Qualified != "multi_other.only_here" {
 		t.Fatalf("structure from b: %q %q", m.structure.data.Qualified, m.structure.err)
 	}

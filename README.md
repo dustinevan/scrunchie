@@ -101,6 +101,22 @@ Put command options before a positional connection string. Headless commands
 continue to use PostgreSQL environment settings when no connection string is
 provided.
 
+## Press what you'd press
+
+You don't have to learn scrunchie's keys. Each place in the app knows what you
+can do there and the keys people bring from vim, less, readline, desktop
+editors, spreadsheets, SQL GUIs, and psql. So `j`/`k` move through results,
+`q` backs out of the inspector, F5 runs SQL, typing a name filters the database
+tree, and running `\d users` opens the table's structure instead of a syntax
+error.
+
+A key whose meaning differs between tools, like Ctrl+D (half-page, exit, or
+delete), deliberately does nothing and tells you the key for each meaning.
+Repeating a guess is harmless, and nothing costly (running SQL, quitting,
+disconnecting, writing files) happens on a key that could mean something else.
+Press `?` in any pane to see what you can do there. The rules and the full
+habit table are in [keyboard and mouse behavior](docs/KEYS.md).
+
 ## Safe by default
 
 - **Connections open read-only.** scrunch starts every session with
@@ -186,15 +202,15 @@ buttons, and checkboxes also accept mouse input.
 | Action | Key |
 |---|---|
 | Open the database manager | `Ctrl+B` |
-| Run SQL at the cursor or selected SQL | `Ctrl+J` (`Ctrl+Enter` when supported) |
-| Editor / results / databases | `F2` / `F5` / `F6` |
-| Commands / help / history | `Ctrl+P` / `F1` / `F8` |
+| Run SQL at the cursor or selected SQL | `Ctrl+J` or `F5` (`Ctrl+Enter`, `Cmd+Enter` when the terminal forwards them) |
+| Editor / databases | `F2` / `F6` |
+| Commands / what you can do here / history | `Ctrl+P` / `?` or `F1` / `F8` or `Ctrl+R` |
 | Complete a name | `Ctrl+Space` (also automatic while typing) |
 | Inspect a result cell | `Enter` |
 | Sort / filter / copy results as… | `s` / `f` / `y` in results |
 | Fetch more rows | `m` in results |
-| Table structure | `d` in databases |
-| Disconnect a database | `x` in databases |
+| Filter the database tree | Just type a name |
+| Row actions: structure, DDL, SELECT, edit, disconnect | `.` in databases |
 | Change bytea column format | `v` in results |
 | Cancel a running query | `Ctrl+C` |
 | Copy when idle | `Ctrl+C` |
@@ -216,9 +232,10 @@ open keep their sessions, transactions, catalogs, and results. Each SQL buffer
 belongs to one connection, shown in its tab and in the header, and Ctrl+P →
 **Change buffer connection…** moves it. Queries on different connections run at
 the same time, one per connection, and each buffer keeps its own results.
-Ctrl+C cancels the current buffer's query. `x` on a connection in the database
-pane disconnects it, asking first when that would roll back a transaction or
-cancel a query. Quit lists every connection with open work before closing.
+Ctrl+C cancels the current buffer's query. `.` → Disconnect on a connection in
+the database pane disconnects it, asking first when that would roll back a
+transaction or cancel a query. Quit lists every connection with open work
+before closing.
 
 ### Completion
 
@@ -261,11 +278,13 @@ or its path. It preserves duplicate JSON keys rather than overwriting them.
 
 Each open connection has its own tree: schemas, then tables and views marked by
 kind, then `functions` and `sequences` folders, then columns. Branches load as
-you open them and wait while that connection runs SQL. `d` on a table or view
-opens its structure: columns, keys, foreign keys in both directions, indexes,
-checks, triggers, comments, an estimated row count, and size. `D` there, or `d`
-on a function or sequence, opens generated DDL in a new buffer. Generated SQL is
-never run for you, and quitting does not ask to save it.
+you open them and wait while that connection runs SQL. Typing a name filters the
+tree as you type. `.` → Structure on a table or view, or `\d name` run from
+SQL, opens its structure: columns, keys, foreign keys in both directions,
+indexes, checks, triggers, comments, an estimated row count, and size. `D`
+there, or `.` → DDL on a function or sequence, opens generated DDL in a new
+buffer. Generated SQL is never run for you, and quitting does not ask to save
+it.
 
 ## SQL sessions and limits
 

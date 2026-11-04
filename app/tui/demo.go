@@ -8,8 +8,8 @@ import (
 )
 
 const demoSQL = `-- Totally offline demo: no database, no network, no parents.
--- Ctrl+J runs it. F5 jumps to results. Enter opens a diary (JSON)
--- or a mixtape (bytea) in the inspector.
+-- Ctrl+J or F5 runs it. Enter on a cell opens its diary (JSON)
+-- or mixtape (bytea). Outside SQL, ? shows what you can do.
 SELECT id, activity, diary, mixtape
 FROM rad.sleepover;
 `
@@ -36,7 +36,7 @@ func (m *Model) initDemo() {
 	m.buffers[0].conn = c.id
 	m.buffers[0].results.batch = demoBatch()
 	m.buffers[0].results.conn, m.buffers[0].results.connName = c.id, c.name
-	m.status = "Offline demo · F5 results · Enter inspects JSON and bytes · no database connection"
+	m.status = "Offline demo · Ctrl+J runs · ↓ at the end of SQL reaches results · outside SQL, ? shows what you can do"
 }
 
 // demoBatch covers the display edge cases: a number beyond float precision,

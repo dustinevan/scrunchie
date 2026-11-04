@@ -39,6 +39,8 @@ type databasePaneState struct {
 	selection    string
 	filter       string
 	manualScroll bool
+	// typing is true while typed letters edit the catalog filter.
+	typing bool
 }
 
 // databaseRows lists Add, each open connection followed by its visible
@@ -296,13 +298,13 @@ func (m *Model) databasePaneView(width, height int) string {
 		if loading {
 			hint = m.spinner.View() + " Loading catalog…"
 		} else if m.catalogFilter != "" {
-			hint = "/ " + termtext.Safe(m.catalogFilter) + " · Esc clears"
+			hint = "Esc clears the filter"
 		} else if len(m.connections) == 0 && !m.config.Demo {
 			hint = "Enter or Space opens selection"
 		} else if current != nil && len(current.catalog) == 0 && !current.collapsed {
 			hint = "No objects · Ctrl+R refreshes"
 		} else if len(m.connections) > 1 {
-			hint = "Enter switches connection · x disconnects"
+			hint = "Enter switches connection · . shows actions"
 		}
 		if hint != "" {
 			lines = append(lines, mutedStyle.Render(hint))
@@ -311,8 +313,32 @@ func (m *Model) databasePaneView(width, height int) string {
 	return fitBlock(strings.Join(lines, "\n"), width, height)
 }
 
+// databasePaneKey handles keys in the database tree. Typed letters never reach
+// it: they edit the filter first (typeFilter). Its letter cases (e, x, i, p,
+// d) are the row actions that "." and the command palette perform.
 func (m *Model) databasePaneKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
+	if m.databasePane.typing {
+		switch key {
+		case "up", "down", "pgup", "pgdown":
+			// Choosing among matches keeps typing.
+		case "backspace":
+			runes := []rune(m.catalogFilter)
+			if len(runes) <= 1 {
+				m.databasePane.typing = false
+				m.findNext("")
+				return nil
+			}
+			m.findNext(string(runes[:len(runes)-1]))
+			return nil
+		case "ctrl+u", "esc":
+			m.databasePane.typing = false
+			m.findNext("")
+			return nil
+		default:
+			m.databasePane.typing = false
+		}
+	}
 	rows := m.databaseRows()
 	index := max(0, min(m.databasePane.index, len(rows)-1))
 	row := rows[index]
@@ -343,7 +369,17 @@ func (m *Model) databasePaneKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.addDatabaseFromPane()
 		return nil
 	case "/":
-		m.beginSearch()
+		m.databasePane.typing = true
+		m.status, m.statusError = "Type to filter · ↑↓ choose · Enter opens · Esc clears", false
+		return nil
+	case "backspace":
+		if m.catalogFilter == "" {
+			m.status, m.statusError = "No filter to edit · type a name to filter", false
+			return nil
+		}
+		runes := []rune(m.catalogFilter)
+		m.databasePane.typing = len(runes) > 1
+		m.findNext(string(runes[:len(runes)-1]))
 		return nil
 	case "ctrl+r":
 		if c == nil {
@@ -383,7 +419,23 @@ func (m *Model) databasePaneKey(msg tea.KeyPressMsg) tea.Cmd {
 			return nil
 		}
 		return m.requestDisconnect(c)
-	case "i", "p", ".", "d":
+	case ".":
+		switch row.kind {
+		case databaseAdd:
+			m.status, m.statusError = "Enter adds a database", false
+		case databaseCatalog:
+			m.openPrompt("catalog-actions", "Actions · "+termtext.Safe(c.catalog[row.node].name), "")
+		default:
+			name := ""
+			if row.kind == databaseSaved {
+				name = m.profiles[row.profile].Name
+			} else if c != nil {
+				name = c.name
+			}
+			m.openPrompt("catalog-actions", "Actions · "+termtext.Safe(name), "")
+		}
+		return nil
+	case "i", "p", "d":
 		if row.kind == databaseSaved && key == "d" {
 			m.status, m.statusError = "d shows table structure · remove saved settings from the Ctrl+B manager", false
 			return nil
@@ -416,7 +468,7 @@ func (m *Model) databasePaneKey(msg tea.KeyPressMsg) tea.Cmd {
 				m.activateConnection(c)
 				c.collapsed = false
 				m.focusPane(catalogPane)
-				m.status = bufferName(m.buffers[m.bufferIndex]) + " runs on " + termtext.Safe(c.name) + " · → enters SQL · x disconnects"
+				m.status = bufferName(m.buffers[m.bufferIndex]) + " runs on " + termtext.Safe(c.name) + " · → enters SQL · . shows actions"
 				return nil
 			}
 			c.collapsed = !c.collapsed
@@ -446,9 +498,9 @@ func (m *Model) databaseCatalogKey(c *connection, key string, index int) tea.Cmd
 	switch key {
 	case "enter", "space":
 		if node.leaf() {
-			hint := " · d shows its DDL"
+			hint := " · . → DDL"
 			if node.kind == "column" {
-				hint = " · d shows the table structure"
+				hint = " · . → Structure"
 			}
 			m.status, m.statusError = node.name+" · "+node.detail+hint, false
 			return nil
@@ -512,4 +564,29 @@ func (m *Model) databaseCatalogKey(c *connection, key string, index int) tea.Cmd
 		}
 	}
 	return nil
+}
+
+// typeFilter narrows the database tree as a name is typed. The first letter
+// starts a new filter; later letters extend it. Matches show as you type, and
+// the first one is selected.
+func (m *Model) typeFilter(key string) {
+	filter := m.catalogFilter
+	if !m.databasePane.typing {
+		filter = ""
+	}
+	m.databasePane.typing = true
+	m.findNext(filter + key)
+}
+
+// databaseTitle shows the filter in the pane title, where it stays visible
+// however long the tree is, with a cursor while it is being typed.
+func (m *Model) databaseTitle() string {
+	if m.catalogFilter == "" && !m.databasePane.typing {
+		return "DATABASES"
+	}
+	title := "DATABASES · " + termtext.Safe(m.catalogFilter)
+	if m.databasePane.typing && m.focus == catalogPane {
+		title += "▏"
+	}
+	return title
 }

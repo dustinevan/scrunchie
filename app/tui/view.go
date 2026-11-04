@@ -412,14 +412,14 @@ func (m *Model) View() tea.View {
 		case resultsPane:
 			body = panel("RESULTS", m.gridView(m.width-2, l.bodyHeight-3), m.width, l.bodyHeight, true)
 		case catalogPane:
-			body = panel("DATABASES", m.databasePaneView(m.width-2, l.bodyHeight-3), m.width, l.bodyHeight, true)
+			body = panel(m.databaseTitle(), m.databasePaneView(m.width-2, l.bodyHeight-3), m.width, l.bodyHeight, true)
 		}
 	} else {
 		editor := panel("SQL", m.editorView(l.rightWidth-2, l.editorHeight-3), l.rightWidth, l.editorHeight, m.focus == editorPane)
 		grid := panel("RESULTS", m.gridView(l.rightWidth-2, l.resultHeight-3), l.rightWidth, l.resultHeight, m.focus == resultsPane)
 		body = lipgloss.JoinVertical(lipgloss.Left, editor, grid)
 		if l.catalogWidth > 0 {
-			catalog := panel("DATABASES", m.databasePaneView(l.catalogWidth-2, l.bodyHeight-3), l.catalogWidth, l.bodyHeight, m.focus == catalogPane)
+			catalog := panel(m.databaseTitle(), m.databasePaneView(l.catalogWidth-2, l.bodyHeight-3), l.catalogWidth, l.bodyHeight, m.focus == catalogPane)
 			body = lipgloss.JoinHorizontal(lipgloss.Top, catalog, body)
 		}
 	}
@@ -434,7 +434,7 @@ func (m *Model) View() tea.View {
 	} else {
 		status = mutedStyle.Render(status)
 	}
-	footer := " Arrows move · ← at start goes to databases · ↓ at end goes to results · Ctrl+J run · F1 help"
+	footer := " Arrows move · ← at start: databases · ↓ at end: results · Ctrl+J run · Ctrl+P commands · F1 help"
 	if m.modal.kind == "connection" {
 		footer = " Tab next  Shift+Tab back  Enter next/activate  Space checkbox  Esc cancel"
 	} else if m.modal.kind == "connections" {
@@ -444,21 +444,24 @@ func (m *Model) View() tea.View {
 	} else if m.modal.kind != "" {
 		footer = " Enter accept  Esc back  ↑↓ select  Tab next  Ctrl+Q quit"
 	} else if m.inspector.active {
-		footer = " ↑↓ navigate  ←→ collapse/expand  Enter toggle  v format  Ctrl+C copy  Esc back"
+		footer = " ↑↓ move · ←→ close/open · Enter toggle · v format · Ctrl+C copy · Esc back · ? help"
 		if !m.inspector.json {
-			footer = " ↑↓ lines · ←→ scroll · v format · Ctrl+C copy · Esc results"
+			footer = " ↑↓ lines · ←→ scroll · v format · Ctrl+C copy · Esc results · ? help"
 		} else if m.inspector.filter != "" {
-			footer = " ↑↓ keys · ← parent · →/Enter child · F3 next match · Esc clear filter"
+			footer = " ↑↓ keys · ← parent · →/Enter child · n next match · Esc clear filter"
 		}
 	} else if m.structure.active {
-		footer = " ↑↓ lines · Enter/Space toggle section · D DDL · Ctrl+C copy · Ctrl+R reload · Esc back"
+		footer = " ↑↓ lines · Enter toggle section · D DDL · Ctrl+C copy · Esc back · ? help"
 	} else if m.focus == resultsPane {
-		footer = " Arrows move · Shift+arrows/drag select · Enter inspect · s sort · f filter · y copy as · F1 help"
+		footer = " Arrows move · Enter inspect · s sort · f filter · y copy as · Esc SQL · ? help"
 		if m.results().view.filter != "" {
-			footer = " Esc clears filter · f edit filter · s sort · y copy as · Enter inspect · F1 help"
+			footer = " Esc clears filter · f edit filter · s sort · y copy as · Enter inspect · ? help"
 		}
 	} else if m.focus == catalogPane {
-		footer = " ↑↓ select · → SQL · ← collapse/parent · Enter/Space open · x disconnect · + add · F1 help"
+		footer = " Type to filter · ↑↓ select · Enter open · . actions · + add · → SQL · ? help"
+		if m.databasePane.typing {
+			footer = " Keep typing to narrow · ↑↓ choose · Enter open · Esc clear · → SQL"
+		}
 	}
 	content := fitLine(header, m.width) + "\n" + fitBlock(body, m.width, l.bodyHeight) + "\n" + fitLine(status, m.width) + "\n" + fitLine(footerLine(footer), m.width)
 	view := tea.NewView(fitBlock(content, m.width, m.height))
@@ -809,9 +812,10 @@ Ctrl+Tab        Cycle panes; Ctrl+Shift+Tab cycles backward
 MAIN
 Ctrl+P          Command palette: every action is available here
 Ctrl+B          Databases: open more connections, add, edit
-F2 / F5 / F6    Focus SQL / results / databases
-Ctrl+J          Run selected SQL or statement at cursor
-Ctrl+Enter      Run alias (terminal support varies)
+F2 / F6         Focus SQL / databases
+Ctrl+J / F5     Run selected SQL or statement at cursor
+Ctrl+Enter      Run alias (also Cmd+Enter where the terminal forwards it)
+\d \l \q \?     psql commands run as their scrunch equivalents
 Ctrl+C          Cancel this buffer's query or connecting; otherwise copy
 Ctrl+Q          Quit, checking unsaved SQL and open transactions
 F8              In-memory history of every connection (Enter opens; never runs)
@@ -873,14 +877,11 @@ DATABASE PANE
 Arrows          Up/Down select; Left collapse/parent; Right SQL
 Enter/Space     Open a saved database, switch to an open one, or toggle tree
 + Add database  Pinned row: arrows then Enter/Space, or click
-e               Edit the selected saved connection
-x               Disconnect the selected open database
-i               Insert quoted identifier into SQL
-p               Prepare SELECT in a new buffer
-d               Table/view structure; DDL for functions and sequences
+Letters         Type a name to filter; matches show as you type
+.               Actions: SELECT, structure, DDL, COUNT, insert name,
+                edit settings, disconnect
   In structure  Enter/Space section · D DDL buffer · Ctrl+C line · Esc
-.               Prepare SELECT, structure, DDL, or COUNT
-/ or Ctrl+F     Filter loaded objects; F3 next match; Esc clears
+/ or Ctrl+F     Filter too; F3 next match; Esc clears
 Ctrl+R          Refresh catalog
 
 JSON / VALUE INSPECTOR

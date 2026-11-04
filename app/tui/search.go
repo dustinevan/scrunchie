@@ -9,6 +9,12 @@ import (
 )
 
 func (m *Model) beginSearch() {
+	// The database tree filters in place as you type, with matches visible.
+	if m.focus == catalogPane && !m.inspector.active && !m.structure.active {
+		m.databasePane.typing = true
+		m.status, m.statusError = "Type to filter · ↑↓ choose · Enter opens · Esc clears", false
+		return
+	}
 	m.searchPane, m.searchInspector = m.focus, m.inspector.active
 	title := "Find SQL text"
 	value := m.lastSearch
